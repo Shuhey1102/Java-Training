@@ -92,7 +92,7 @@ INSERT INTO parts (part_code, part_name, stock, warehouse_code) VALUES
 ## 変更するプロジェクト構成
 
 ```
-training/
+05_project_inventory_system/
 └── src/
     └── inventory/
         ├── model/

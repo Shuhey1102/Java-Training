@@ -35,7 +35,7 @@ Spring Boot では **これらの多くを自動化・省略** できます。
 | Language | Java |
 | Spring Boot | 3.x.x（最新安定版） |
 | Group | `com.example` |
-| Artifact | `inventory` |
+| Artifact | `inventory-springboot` |
 | Packaging | Jar |
 | Java | 17 |
 | Dependencies | Spring Web, Thymeleaf, JDBC API, MS SQL Server Driver |
@@ -45,7 +45,8 @@ Spring Boot では **これらの多くを自動化・省略** できます。
 ## プロジェクト構成
 
 ```
-src/main/java/com/example/inventory/
+05_project_inventory_system/          ← Spring Boot プロジェクトルート
+├── src/main/java/com/example/inventory/
 ├── model/
 │   ├── Part.java
 │   └── StockTransaction.java
@@ -62,16 +63,16 @@ src/main/java/com/example/inventory/
     ├── PartController.java
     └── StockController.java
 
-src/main/resources/
-├── application.properties    ← DB 接続設定・アプリ設定
-└── templates/                ← JSP の代替（Thymeleaf）
-    ├── part/
-    │   ├── list.html
-    │   └── add.html
-    └── stock/
-        ├── in.html
-        ├── out.html
-        └── history.html
+└── src/main/resources/
+    ├── application.properties    ← DB 接続設定・アプリ設定
+    └── templates/                ← JSP の代替（Thymeleaf）
+        ├── part/
+        │   ├── list.html
+        │   └── add.html
+        └── stock/
+            ├── in.html
+            ├── out.html
+            └── history.html
 ```
 
 ---

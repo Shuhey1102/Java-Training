@@ -40,13 +40,23 @@
 ## フォルダ構成
  
 ```
-(ここに実際のフォルダ構成を記載)
-例:
-01_environment_setup/
-02_java_basics/
-03_oop_basics/
-04_db_connection/
-05_project_inventory_system/
+java-training/
+├── 01_environment_setup/      ← 課題① 開発環境セットアップ
+├── 02_java_basics/            ← 課題② Java基礎・OOP棚卸し
+│   └── src/basics/
+├── 03_oop_basics/             ← (02に含まれる場合は省略可)
+├── 04_db_connection/          ← 参考資料・接続メモなど
+└── 05_project_inventory_system/  ← 課題③〜⑨ 部品在庫管理システム
+    ├── src/inventory/         ← コンソールアプリ（課題③〜⑥）
+    │   ├── model/
+    │   ├── dao/
+    │   ├── service/
+    │   ├── util/
+    │   ├── exception/
+    │   └── app/
+    ├── data/                  ← CSVファイル置き場（課題④）
+    ├── WEB-INF/               ← Webアプリ用（課題⑦⑧ Jakarta EE）
+    └── (inventory-springboot) ← Spring Bootプロジェクト（課題⑨）
 ```
  
 ## 学習の進め方(新人向け)

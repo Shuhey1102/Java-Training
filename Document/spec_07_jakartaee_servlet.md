@@ -33,10 +33,10 @@ Jakarta EE の Servlet と JSP を使って、ブラウザから操作できる�
 
 ## プロジェクト構成
 
-Eclipse で新規 **Dynamic Web Project** を作成すること（プロジェクト名：`inventory-web`）。
+Eclipse で新規 **Dynamic Web Project** を作成すること（プロジェクト名：`05_project_inventory_system`）。
 
 ```
-inventory-web/
+05_project_inventory_system/
 ├── src/main/java/
 │   └── inventory/
 │       ├── model/

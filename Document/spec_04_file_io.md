@@ -27,7 +27,7 @@
 ## 追加・変更するファイル
 
 ```
-training/
+05_project_inventory_system/
 └── src/
     └── inventory/
         ├── model/
@@ -39,7 +39,7 @@ training/
         └── app/
             └── Main.java                  ← 変更（メニュー追加）
 
-data/                                      ← プロジェクト直下に作成
+05_project_inventory_system/data/          ← プロジェクト直下に作成
 ├── parts.csv                              ← 部品マスタ
 └── transactions.csv                       ← 入出庫履歴
 ```

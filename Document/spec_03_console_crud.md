@@ -26,7 +26,7 @@
 ### プロジェクト構成
 
 ```
-training/
+05_project_inventory_system/
 └── src/
     └── inventory/
         ├── model/
