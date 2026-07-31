@@ -17,25 +17,18 @@ Java 開発に必要なツールをすべてセットアップし、「Hello Wor
 
 ### 1. JDK インストール
 
-**OpenJDK 17 LTS** をインストールする。以下のいずれかから入手すること。
+**Eclipse Temurin 17 LTS** をインストールする。
 
-| 配布元 | URL | 備考 |
-|---|---|---|
-| Eclipse Temurin（推奨） | https://adoptium.net/ | 最も広く使われている OpenJDK ビルド |
-| Microsoft Build of OpenJDK | https://aka.ms/download-jdk | Azure 環境との親和性が高い |
-
-インストール後、以下を実施すること。
-
-- 環境変数 `JAVA_HOME` を OpenJDK のインストールフォルダに設定する（例：`C:\Program Files\Eclipse Adoptium\jdk-17.x.x`）
-- `PATH` に `%JAVA_HOME%\bin` を追加する
-- コマンドプロンプトで以下を実行し、バージョンが表示されることを確認する
+- [https://adoptium.net/](https://adoptium.net/) にアクセスし、**Temurin 17 (LTS)** の Windows x64 インストーラー（`.msi`）をダウンロードして実行する
+- インストーラーのオプションで「**Set JAVA_HOME variable**」「**Add to PATH**」にチェックが入っていることを確認してインストール（自動で環境変数が設定される）
+- インストール後、コマンドプロンプトで以下を実行してバージョンが表示されることを確認する
 
 ```
 java -version
 javac -version
 ```
 
-**確認ポイント：** `openjdk 17.x.x` と表示されること（`java` ではなく `openjdk` であることを確認）
+**確認ポイント：** `openjdk 17.x.x` および配布元として `Temurin` と表示されること
 
 ### 2. Eclipse（Pleiades）セットアップ
 
@@ -72,24 +65,41 @@ git config --global user.email "自分のメールアドレス"
 mvn -version
 ```
 
-### 6. SQL Server Express LocalDB セットアップ
+### 6. SQL Server LocalDB セットアップ
 
-- SQL Server Express（LocalDB を含む）をインストールする（[Microsoft 公式サイト](https://www.microsoft.com/ja-jp/sql-server/sql-server-downloads) から「Express」をダウンロード → インストール種類で「カスタム」→「LocalDB」を選択）
-- SSMS（SQL Server Management Studio）をインストールする
-- コマンドプロンプトで LocalDB のインスタンス一覧を確認する
+### 6. SQL Server LocalDB セットアップ
+
+LocalDB は Visual Studio Installer の個別コンポーネントからインストールする。
+
+1. スタートメニューから「**Visual Studio Installer**」を起動する
+2. インストール済み VS の「**変更**」をクリックする
+3. 「**個別のコンポーネント**」タブを開く
+4. 検索ボックスに `LocalDB` と入力し、**「SQL Server Express 2019 LocalDB」**（または最新版）にチェックを入れる
+5. 「**変更**」ボタンをクリックしてインストール
+
+#### インストール確認
+
+コマンドプロンプトで以下を実行し、インスタンスが表示されることを確認する。
 
 ```
 sqllocaldb info
 ```
 
-- インスタンスが無い場合は作成する（例：`MSSQLLocalDB` という名前で自動作成されていることが多い）
+表示例：
+```
+MSSQLLocalDB
+```
+
+インスタンスが停止している場合は起動する：
 
 ```
-sqllocaldb create MSSQLLocalDB
 sqllocaldb start MSSQLLocalDB
 ```
 
-- SSMS を起動し、サーバー名に以下を入力して接続する
+#### SSMS から接続確認
+
+- SSMS（SQL Server Management Studio）をインストールする（[ダウンロードページ](https://learn.microsoft.com/ja-jp/sql/ssms/download-sql-server-management-studio-ssms)）
+- SSMS を起動し、サーバー名に以下を入力して「**Windows 認証**」で接続する
 
 ```
 (localdb)\MSSQLLocalDB
@@ -101,7 +111,41 @@ sqllocaldb start MSSQLLocalDB
 SELECT 1
 ```
 
-> **ポイント：** LocalDB は各自の PC 内で動くため、ホスト名やユーザー名・パスワードは不要（Windows 認証で接続する）。チームで共有する DB ではなく、各自のローカル環境にデータを持つ点を理解しておくこと。
+> **ポイント：** LocalDB は Windows 認証で接続するため、ユーザー名・パスワードは不要。チームで共有する DB サーバーではなく、各自の PC 内でデータを管理する。
+
+コマンドプロンプトで以下を実行し、インスタンスが表示されることを確認する。
+
+```
+sqllocaldb info
+```
+
+表示例：
+```
+MSSQLLocalDB
+```
+
+インスタンスが停止している場合は起動する：
+
+```
+sqllocaldb start MSSQLLocalDB
+```
+
+#### SSMS から接続確認
+
+- SSMS（SQL Server Management Studio）をインストールする（[ダウンロードページ](https://learn.microsoft.com/ja-jp/sql/ssms/download-sql-server-management-studio-ssms)）
+- SSMS を起動し、サーバー名に以下を入力して「**Windows 認証**」で接続する
+
+```
+(localdb)\MSSQLLocalDB
+```
+
+- 接続後、以下の SQL を実行して結果が返ることを確認する
+
+```sql
+SELECT 1
+```
+
+> **ポイント：** LocalDB は Windows 認証で接続するため、ユーザー名・パスワードは不要。チームで共有する DB サーバーではなく、各自の PC 内でデータを管理する。
 
 ### 7. Hello World の実行
 
@@ -125,7 +169,7 @@ public class HelloWorld {
 
 ## 提出物
 
-以下をすべて担当者（Shuhey）に確認してもらうこと。
+以下をすべて担当者に確認してもらうこと。
 
 | # | 確認内容 |
 |---|----------|
