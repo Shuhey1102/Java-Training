@@ -24,7 +24,7 @@ Jakarta EE の Servlet と JSP を使って、ブラウザから操作できる�
 
 ## 事前準備
 
-担当者（Shuhey）と一緒に以下を確認すること。
+担当者と一緒に以下を確認すること。
 
 - Tomcat のバージョンと Eclipse への組み込み方法
 - Jakarta EE のバージョン（Tomcat 10 以降は `jakarta.*`、Tomcat 9 以前は `javax.*`）
