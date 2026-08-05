@@ -412,6 +412,173 @@ ORDER BY part_code;
 
 ---
 
+## チャプター 5：バッチ INSERT（大量データの高速登録）
+
+### 何を学ぶか
+
+`PreparedStatement` の `addBatch()` / `executeBatch()` を使って、
+複数件のデータを一括で INSERT する方法を学ぶ。
+
+1 件ずつ INSERT を繰り返すと DB への往復通信が件数分発生するが、
+バッチ INSERT はまとめて送信するため大量データの登録が高速になる。
+
+```
+【1件ずつの場合】                    【バッチ INSERTの場合】
+Java → INSERT 1件 → DB              Java → INSERT 100件まとめて → DB
+Java → INSERT 1件 → DB              （1回の通信で完了）
+Java → INSERT 1件 → DB
+...（100回繰り返す）
+```
+
+---
+
+### PreparedStatement のバッチ機能
+
+| メソッド | 説明 |
+|---|---|
+| `ps.addBatch()` | パラメータをセットした SQL をバッチに追加する（まだ実行しない） |
+| `ps.executeBatch()` | バッチにたまった SQL をまとめて実行する |
+| `ps.clearBatch()` | バッチをクリアする |
+| `conn.setAutoCommit(false)` | バッチ実行前にトランザクションを開始する |
+
+### 動作確認コード（SSMS で件数確認しながら試すこと）
+
+```java
+// ① 1 件ずつ INSERT（遅い方）
+public void insertOneByOne(List<StockTransaction> list) throws SQLException {
+    String sql = "INSERT INTO stock_transactions "
+               + "(transaction_id, part_code, type, quantity) VALUES (?, ?, ?, ?)";
+
+    try (Connection conn = DbConnection.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        conn.setAutoCommit(false);
+        for (StockTransaction tx : list) {
+            ps.setString(1, tx.getTransactionId());
+            ps.setString(2, tx.getPartCode());
+            ps.setString(3, tx.getType());
+            ps.setInt   (4, tx.getQuantity());
+            ps.executeUpdate();   // ← 1 件ごとに DB に送信
+        }
+        conn.commit();
+    }
+}
+
+// ② バッチ INSERT（速い方）
+public void insertBatch(List<StockTransaction> list) throws SQLException {
+    String sql = "INSERT INTO stock_transactions "
+               + "(transaction_id, part_code, type, quantity) VALUES (?, ?, ?, ?)";
+
+    try (Connection conn = DbConnection.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        conn.setAutoCommit(false);
+        for (StockTransaction tx : list) {
+            ps.setString(1, tx.getTransactionId());
+            ps.setString(2, tx.getPartCode());
+            ps.setString(3, tx.getType());
+            ps.setInt   (4, tx.getQuantity());
+            ps.addBatch();        // ← バッチに追加するだけ（まだ送信しない）
+        }
+        ps.executeBatch();        // ← ここで全件まとめて送信
+        conn.commit();
+    }
+}
+```
+
+### バッチサイズの分割
+
+件数が多い場合（数千〜数万件）は、一定件数ごとに `executeBatch()` を呼ぶ方が安全。
+一度に大量のデータを送りすぎるとメモリ不足やタイムアウトになることがある。
+
+```java
+public void insertBatchWithChunk(List<StockTransaction> list, int chunkSize)
+        throws SQLException {
+    String sql = "INSERT INTO stock_transactions "
+               + "(transaction_id, part_code, type, quantity) VALUES (?, ?, ?, ?)";
+
+    try (Connection conn = DbConnection.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        conn.setAutoCommit(false);
+
+        for (int i = 0; i < list.size(); i++) {
+            StockTransaction tx = list.get(i);
+            ps.setString(1, tx.getTransactionId());
+            ps.setString(2, tx.getPartCode());
+            ps.setString(3, tx.getType());
+            ps.setInt   (4, tx.getQuantity());
+            ps.addBatch();
+
+            // chunkSize 件ごとに実行してバッチをクリア
+            if ((i + 1) % chunkSize == 0) {
+                ps.executeBatch();
+                ps.clearBatch();
+                System.out.println((i + 1) + " 件処理済み");
+            }
+        }
+
+        // 残りを実行
+        ps.executeBatch();
+        conn.commit();
+    }
+}
+```
+
+> **ポイント：** `chunkSize` は 500〜1000 件程度が目安。
+> DB や環境によって最適な値は異なるため、実務では計測しながら調整する。
+
+---
+
+### 課題 5：バッチ INSERT の実装と計測
+
+#### 手順 1：テストデータの生成
+
+`BatchInsertMain.java` を作成し、テスト用の入出庫データを 1000 件分メモリ上に生成する。
+
+```java
+List<StockTransaction> testData = new ArrayList<>();
+for (int i = 1; i <= 1000; i++) {
+    String txId    = String.format("TEST%04d", i);
+    String type    = (i % 2 == 0) ? "IN" : "OUT";
+    String partCode = "P00" + (i % 3 + 1);   // P001〜P003 をローテーション
+    testData.add(new StockTransaction(txId, partCode, type, 1));
+}
+```
+
+#### 手順 2：1件ずつ INSERT と バッチ INSERT の両方を実装して実行時間を計測する
+
+```java
+// 計測の例
+long start = System.currentTimeMillis();
+dao.insertOneByOne(testData);
+long end = System.currentTimeMillis();
+System.out.println("1件ずつ：" + (end - start) + " ms");
+
+// テーブルをクリアして再計測
+// ...
+
+start = System.currentTimeMillis();
+dao.insertBatch(testData);
+end = System.currentTimeMillis();
+System.out.println("バッチ  ：" + (end - start) + " ms");
+```
+
+#### 手順 3：チャンク分割バージョンも試す
+
+`chunkSize` を 100 / 500 / 1000 と変えて計測し、違いを確認する。
+
+#### 結果を以下の表にまとめて提出すること
+
+| 実装方法 | 件数 | 実行時間（ms） |
+|---|---|---|
+| 1 件ずつ INSERT | 1000 件 | |
+| バッチ INSERT（一括） | 1000 件 | |
+| バッチ INSERT（chunk=100） | 1000 件 | |
+| バッチ INSERT（chunk=500） | 1000 件 | |
+
+---
+
 ## 実装クラス
 
 ### ReportRow クラス（`model/ReportRow.java`）
