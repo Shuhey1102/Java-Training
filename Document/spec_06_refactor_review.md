@@ -89,41 +89,99 @@ public class DuplicatePartException extends InventoryException {
 
 ### 課題 6-3：ログ出力の追加
 
-SLF4J + Logback でログを出力するように変更すること。
+Log4j 2 の JAR を手動でプロジェクトに追加し、ログ出力を実装すること。
 
-**pom.xml への追加（Maven の場合）：**
+#### 手順 1：JAR のダウンロードと配置
+
+1. [https://logging.apache.org/log4j/2.x/download.html](https://logging.apache.org/log4j/2.x/download.html) から最新の Log4j 2 をダウンロードする（`apache-log4j-2.x.x-bin.zip`）
+2. ZIP を解凍し、以下の 3 つの JAR を `lib/` フォルダにコピーする
+
+```
+lib/
+├── mssql-jdbc-12.x.x.jre11.jar          ← 課題⑤で追加済み
+├── log4j-api-2.x.x.jar                  ← 追加
+├── log4j-core-2.x.x.jar                 ← 追加
+└── log4j-slf4j2-impl-2.x.x.jar          ← 追加（SLF4J との連携用）
+```
+
+3. 課題⑤と同じ手順で Eclipse のビルドパスに 3 つの JAR を追加する
+
+> **なぜ 3 つ必要か：**
+> - `log4j-api`：ログを書くための API（インターフェース）
+> - `log4j-core`：実際にログを出力する実装
+> - `log4j-slf4j2-impl`：SLF4J という共通 API 経由で Log4j 2 を使うためのブリッジ
+
+#### 手順 2：設定ファイルの作成
+
+`src/` 直下に `log4j2.xml` を作成する。
+
 ```xml
-<dependency>
-    <groupId>org.slf4j</groupId>
-    <artifactId>slf4j-api</artifactId>
-    <version>2.0.9</version>
-</dependency>
-<dependency>
-    <groupId>ch.qos.logback</groupId>
-    <artifactId>logback-classic</artifactId>
-    <version>1.4.11</version>
-</dependency>
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <!-- コンソールに出力 -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} [%-5level] %logger{36} - %msg%n"/>
+        </Console>
+        <!-- ファイルに出力（追記モード） -->
+        <File name="File" fileName="logs/inventory.log" append="true">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} [%-5level] %logger{36} - %msg%n"/>
+        </File>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="File"/>
+        </Root>
+    </Loggers>
+</Configuration>
+```
+
+**出力フォーマットの見方：**
+
+```
+2025-04-01 09:00:00 [INFO ] inventory.service.InventoryService - 入庫処理完了 partCode=P001, newStock=150
+│                    │       │                                   │
+日時                 レベル  クラス名                             メッセージ
+```
+
+#### 手順 3：ログの実装
+
+各クラスに Logger を追加してログを出力すること。
+
+```java
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class InventoryService {
+
+    private static final Logger logger = LoggerFactory.getLogger(InventoryService.class);
+
+    public void stockIn(String partCode, int quantity) {
+        logger.info("入庫処理開始 partCode={}, quantity={}", partCode, quantity);
+        // ...処理...
+        logger.info("入庫処理完了 partCode={}, newStock={}", partCode, newStock);
+    }
+
+    public Part findByCode(String partCode) {
+        Part part = partDao.findByCode(partCode);
+        if (part == null) {
+            logger.warn("部品が見つかりません partCode={}", partCode);
+        }
+        return part;
+    }
+}
 ```
 
 **ログ出力の方針：**
 
-| レベル | 出力する内容 |
-|---|---|
-| `INFO` | 入庫・出庫・登録・更新・削除の操作完了時 |
-| `WARN` | 検索して見つからなかった場合 |
-| `ERROR` | 例外が発生した場合（スタックトレースも出力） |
+| レベル | 出力する内容 | 例 |
+|---|---|---|
+| `INFO` | 操作の開始・完了 | 入庫処理完了・部品登録完了 |
+| `WARN` | 業務的な注意事項 | 検索して見つからなかった場合 |
+| `ERROR` | 例外が発生した場合 | `logger.error("エラー発生", e)` でスタックトレースも出力 |
 
-**実装例：**
-```java
-// InventoryService.java の例
-private static final Logger logger = LoggerFactory.getLogger(InventoryService.class);
-
-public void stockIn(String partCode, int quantity) {
-    logger.info("入庫処理開始 partCode={}, quantity={}", partCode, quantity);
-    // ...処理...
-    logger.info("入庫処理完了 partCode={}, newStock={}", partCode, newStock);
-}
-```
+> **ポイント：** `logger.error("メッセージ", e)` のように例外オブジェクト `e` を第 2 引数に渡すと、スタックトレースも自動でログに出力される。`e.printStackTrace()` は使わないこと。
 
 ---
 
@@ -166,7 +224,11 @@ public void stockIn(String partCode, int quantity) {
 - [ ] `Main.java` に業務ロジックが混入していない
 - [ ] `PartDao` に業務ロジック（在庫チェックなど）が混入していない
 - [ ] 独自例外が適切な場所でスローされている
+- [ ] Log4j 2 の JAR 3 つがビルドパスに追加されている
+- [ ] `log4j2.xml` が `src/` 直下に配置されている
 - [ ] ログが INFO / WARN / ERROR の適切なレベルで出力されている
+- [ ] `e.printStackTrace()` を使わず `logger.error("メッセージ", e)` に統一されている
+- [ ] `logs/inventory.log` にログファイルが生成されている
 - [ ] コミットメッセージが意味のある内容になっている
 - [ ] アプリが正常に動作する（リファクタリング後に動かなくなっていない）
 
