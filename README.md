@@ -54,7 +54,7 @@
 | Phase 1 | 環境構築・Java 基礎確認 | ①② | 1〜2 週 |
 | Phase 2-A | コンソールアプリ開発 | ③④⑤⑥ | 3〜5 週 |
 | Phase 2-B | Web アプリ開発 | ⑦⑧⑨ | 6〜8 週 |
-| Phase 3 | バッチ処理 | ⑩ | 9〜12 週 |
+| Phase 3 | バッチ処理・SQL 応用・分析バッチ | ⑩⑪⑫ | 9〜12 週 |
 
 ### 各課題の概要
 
@@ -70,6 +70,8 @@
 | ⑧ | Web アプリ：Jakarta EE CRUD 完成 | 3〜4 日 |
 | ⑨ | Web アプリ：Spring Boot へ移行・比較学習 | 5〜6 日 |
 | ⑩ | バッチ処理：CSV から入出庫データを一括処理 | 3〜4 日 |
+| ⑪ | SQL 応用：CASE 文・JOIN・GROUP BY・サブクエリ | 3〜4 日 |
+| ⑫ | 分析バッチ：ウィンドウ関数を使った在庫分析 | 4〜5 日 |
 
 ---
 
@@ -83,7 +85,7 @@ java-training/
 ├── 02_java_basics/               ← 課題② Java 基礎・OOP 棚卸し
 │   ├── spec_02_java_basics.md
 │   └── src/basics/               ← 課題② の作業フォルダ
-└── 05_project_inventory_system/  ← 課題③〜⑩ 部品在庫管理システム
+└── 05_project_inventory_system/  ← 課題③〜⑫ 部品在庫管理システム
     ├── spec_03_console_crud.md
     ├── spec_04_file_io.md
     ├── spec_05_jdbc_dao.md
@@ -92,6 +94,8 @@ java-training/
     ├── spec_08_jakartaee_crud.md
     ├── spec_09_springboot.md
     ├── spec_10_batch.md
+    ├── spec_11_sql_advanced.md
+    ├── spec_12_analytics_batch.md
     ├── src/                      ← Java ソースコード
     │   └── inventory/
     │       ├── model/
@@ -103,6 +107,8 @@ java-training/
     ├── data/                     ← CSV ファイル置き場（課題④）
     ├── batch_input/              ← バッチ処理対象ファイル（課題⑩）
     ├── batch_output/             ← バッチ実行ログ（課題⑩、自動生成）
+    ├── report_output/            ← SQL 応用レポート出力（課題⑪、自動生成）
+    ├── analytics_output/         ← 分析バッチ出力（課題⑫、自動生成）
     ├── WebContent/               ← Web アプリ用（課題⑦⑧ Jakarta EE）
     │   ├── WEB-INF/
     │   └── jsp/
