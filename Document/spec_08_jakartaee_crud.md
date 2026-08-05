@@ -191,6 +191,144 @@ public class ValidationUtil {
 
 ---
 
+## ビルド・デプロイ手順
+
+### WAR ファイルのビルドと Tomcat へのデプロイ
+
+Eclipse 上での実行確認が取れたら、WAR ファイルとしてビルドして Tomcat にデプロイする手順を体験する。
+
+#### 手順 1：WAR ファイルのエクスポート
+
+1. Eclipse でプロジェクトを右クリック →「エクスポート」→「WAR ファイル」を選択
+2. 以下を設定してエクスポートする
+
+| 項目 | 設定値 |
+|---|---|
+| Web プロジェクト | `05_project_inventory_system` |
+| 出力先 | 任意のフォルダ（例：`C:\work\inventory.war`） |
+| 最適化されたエクスポート | チェックあり |
+
+#### 手順 2：Tomcat の webapps に配置
+
+1. Tomcat を停止する（Eclipse の「サーバー」ビューから停止、または `shutdown.bat` を実行）
+2. エクスポートした `inventory.war` を Tomcat の `webapps/` フォルダにコピーする
+
+```
+Tomcat インストールフォルダ/
+└── webapps/
+    └── inventory.war   ← ここにコピー
+```
+
+3. Tomcat を起動する（`startup.bat` を実行、または Eclipse のサーバービューから起動）
+4. 起動後、`webapps/` に `inventory/` フォルダが自動展開されていることを確認する
+
+```
+webapps/
+├── inventory.war
+└── inventory/          ← 自動展開される
+    ├── WEB-INF/
+    └── jsp/
+```
+
+5. ブラウザで以下の URL にアクセスして動作確認する
+
+```
+http://localhost:8080/inventory/parts
+```
+
+> **ポイント：** Eclipse 上の「Tomcat で実行」は開発用の簡易実行。実務では WAR をビルドして Tomcat に配置するこの手順が基本になる。
+
+---
+
+### DB 接続プール（DBCP）の設定
+
+#### なぜ接続プールが必要か
+
+これまで DAO クラスで毎回 `DbConnection.getConnection()` を呼び出していたが、
+Web アプリでは **1 リクエストごとに接続の作成・切断**が発生し、パフォーマンスが低下する。
+
+**接続プール**は、あらかじめ一定数の接続を確保しておき、リクエストが来たら既存の接続を使い回す仕組み。
+実務の Web アプリではほぼ必須の仕組みなので、設定方法を理解しておくこと。
+
+```
+【接続プールなし】                   【接続プールあり】
+リクエスト → 接続作成 → 処理 → 切断   リクエスト → プールから取得 → 処理 → プールに返却
+リクエスト → 接続作成 → 処理 → 切断   リクエスト → プールから取得 → 処理 → プールに返却
+（毎回コストがかかる）               （接続の使い回しで高速）
+```
+
+#### Tomcat の JNDI データソースを使った設定
+
+**① `context.xml` に接続プールの設定を追加する**
+
+`WebContent/META-INF/context.xml` を作成し、以下を記述する。
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+    <Resource
+        name="jdbc/InventoryDB"
+        auth="Container"
+        type="javax.sql.DataSource"
+        driverClassName="com.microsoft.sqlserver.jdbc.SQLServerDriver"
+        url="jdbc:sqlserver://(localdb)\\MSSQLLocalDB;databaseName=InventoryTraining;integratedSecurity=true;encrypt=false"
+        maxTotal="10"
+        maxIdle="5"
+        maxWaitMillis="5000"
+    />
+</Context>
+```
+
+| 設定項目 | 説明 |
+|---|---|
+| `maxTotal` | プールが保持する最大接続数 |
+| `maxIdle` | アイドル状態で保持する最大接続数 |
+| `maxWaitMillis` | 接続が取得できない場合の最大待機時間（ms） |
+
+**② `web.xml` にリソース参照を追加する**
+
+```xml
+<resource-ref>
+    <description>DB Connection Pool</description>
+    <res-ref-name>jdbc/InventoryDB</res-ref-name>
+    <res-type>javax.sql.DataSource</res-type>
+    <res-auth>Container</res-auth>
+</resource-ref>
+```
+
+**③ `DbConnection.java` を接続プール経由に書き換える**
+
+```java
+import javax.naming.InitialContext;
+import javax.sql.DataSource;
+
+public class DbConnection {
+
+    public static Connection getConnection() throws Exception {
+        InitialContext ctx = new InitialContext();
+        DataSource ds = (DataSource) ctx.lookup("java:comp/env/jdbc/InventoryDB");
+        return ds.getConnection();
+    }
+}
+```
+
+> **ポイント：** `getConnection()` の呼び出し方は DAO 側で変わらない。
+> 接続プールへの切り替えは `DbConnection` クラスだけ変更すればよい設計になっている。
+> これが「DB アクセスを一箇所に集約する」メリットの一つ。
+
+**④ mssql-jdbc の JAR を Tomcat の lib に追加する**
+
+JNDI データソースは Tomcat が管理するため、JAR をプロジェクトの `lib/` ではなく
+Tomcat の `lib/` フォルダにも配置する必要がある。
+
+```
+Tomcat インストールフォルダ/
+└── lib/
+    └── mssql-jdbc-12.x.x.jre11.jar   ← ここにもコピー
+```
+
+---
+
 ## 動作確認項目
 
 | # | 確認内容 |
