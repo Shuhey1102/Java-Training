@@ -328,6 +328,148 @@ for (String line : lines) {
 
 ---
 
+## JAR ビルドと実行確認
+
+Eclipse 上での動作確認が取れたら、JAR ファイルとしてビルドしてコマンドラインから実行する手順を体験する。
+バッチは本番環境ではコマンドラインやスケジューラから JAR を直接実行するのが一般的。
+
+---
+
+### classpath とは
+
+JAR を実行するには、Java に「このプログラムが使う外部ライブラリ（JAR）はどこにあるか」を教える必要がある。
+これを **classpath**（クラスパス）と呼ぶ。
+
+```
+【Eclipse 上】                        【コマンドライン実行】
+Eclipse がビルドパスを自動で解決     → 自分で -cp オプションで指定する必要がある
+
+ビルドパスに追加した JAR
+├── mssql-jdbc-12.x.x.jre11.jar      → -cp に明示的に含める
+└── logback-classic-x.x.x.jar        → -cp に明示的に含める
+```
+
+classpath を指定しないと `ClassNotFoundException` が発生する。
+
+---
+
+### 手順 1：依存 JAR を lib フォルダに集める
+
+バッチ実行に必要な JAR をプロジェクトの `lib/` フォルダにまとめておく。
+
+```
+05_project_inventory_system/
+└── lib/
+    ├── mssql-jdbc-12.x.x.jre11.jar    ← JDBC ドライバ（課題⑤で追加済み）
+    ├── slf4j-api-2.x.x.jar             ← ログ（課題⑥で追加済み）
+    └── logback-classic-x.x.x.jar      ← ログ（課題⑥で追加済み）
+```
+
+---
+
+### 手順 2：JAR ファイルのエクスポート
+
+Eclipse から実行可能 JAR としてエクスポートする。
+
+1. プロジェクトを右クリック →「エクスポート」→「Runnable JAR ファイル」を選択
+2. 以下を設定する
+
+| 項目 | 設定値 |
+|---|---|
+| 起動構成 | `BatchMain - 05_project_inventory_system` |
+| エクスポート先 | `C:\work\inventory-batch.jar`（任意） |
+| ライブラリー処理 | 「必要なライブラリーをサブフォルダーにコピー」を選択 |
+
+3. エクスポートすると以下が生成される
+
+```
+C:\work\
+├── inventory-batch.jar
+└── inventory-batch_lib/            ← 依存 JAR が自動コピーされる
+    ├── mssql-jdbc-12.x.x.jre11.jar
+    └── logback-classic-x.x.x.jar
+```
+
+---
+
+### 手順 3：コマンドラインから実行する
+
+コマンドプロンプトで以下を実行する。
+
+#### パターン A：Runnable JAR（マニフェストに classpath 設定済み）
+
+```bat
+cd C:\work
+java -jar inventory-batch.jar
+```
+
+> Runnable JAR はマニフェスト（`MANIFEST.MF`）に `Main-Class` と `Class-Path` が自動設定されるため、`-cp` の指定が不要。
+
+---
+
+#### パターン B：通常の JAR（classpath を自分で指定する）
+
+Eclipse で「JAR ファイル」として出力した場合は、`-cp` で classpath を指定する必要がある。
+
+```bat
+cd C:\work
+
+:: Windows の classpath 区切りは「;」（セミコロン）
+java -cp inventory-batch.jar;lib\mssql-jdbc-12.x.x.jre11.jar;lib\logback-classic-x.x.x.jar com.example.inventory.app.BatchMain
+```
+
+**classpath の書き方ガイド：**
+
+| 要素 | 説明 | 例 |
+|---|---|---|
+| `-cp` または `-classpath` | classpath を指定するオプション | `-cp` |
+| 自分の JAR | 自分でビルドした JAR | `inventory-batch.jar` |
+| 区切り文字 | Windows は `;`、Mac/Linux は `:` | `;` |
+| 依存 JAR | 外部ライブラリの JAR（複数ある場合も `;` で繋ぐ） | `lib\mssql-jdbc.jar;lib\logback.jar` |
+| メインクラス | `main()` メソッドを持つクラスのフル修飾名 | `com.example.inventory.app.BatchMain` |
+
+**ワイルドカードで lib フォルダ内の JAR を一括指定：**
+
+```bat
+:: lib\ 以下の全 JAR を一括指定（Java 6 以降）
+java -cp inventory-batch.jar;lib\* com.example.inventory.app.BatchMain
+```
+
+---
+
+### 手順 4：実行時のよくあるエラー
+
+| エラー | 原因 | 対処 |
+|---|---|---|
+| `ClassNotFoundException: com.microsoft.sqlserver...` | JDBC ドライバが classpath に含まれていない | `-cp` に `mssql-jdbc.jar` を追加する |
+| `Could not find or load main class BatchMain` | メインクラスのパッケージ名が間違っている | フル修飾名（`パッケージ名.クラス名`）で指定する |
+| `batch_input/stock_batch.csv が見つからない` | 実行ディレクトリが違う | `cd` でプロジェクトフォルダに移動してから実行する |
+| `NoClassDefFoundError` | コンパイル時と実行時で classpath が違う | 実行時の `-cp` にも同じ JAR を含める |
+
+---
+
+### 手順 5：バッチスクリプト化（任意）
+
+毎回コマンドを打つのが面倒な場合は、バッチスクリプト（`.bat`）にまとめておくと便利。
+
+```bat
+@echo off
+:: run_batch.bat
+
+set JAVA_HOME=C:\pleiades\java\17
+set JAR=inventory-batch.jar
+set LIB=lib
+set MAIN=com.example.inventory.app.BatchMain
+
+%JAVA_HOME%\bin\java -cp %JAR%;%LIB%\* %MAIN%
+
+echo.
+echo バッチ処理が完了しました。
+pause
+```
+
+---
+
 ## 動作確認項目
 
 | # | 確認内容 |
@@ -339,6 +481,9 @@ for (String line : lines) {
 | 5 | スキップ行の在庫・履歴が変わっていない（ロールバック確認） |
 | 6 | `batch_output/` にログファイルが生成されている |
 | 7 | ログファイルの内容がコンソール出力と一致している |
+| 8 | JAR ファイルがエクスポートできている |
+| 9 | コマンドラインから JAR を実行して正常に動作する |
+| 10 | classpath を自分で指定してコマンドラインから実行できる（パターン B）|
 
 ---
 
@@ -347,4 +492,23 @@ for (String line : lines) {
 1. サンプル CSV を使ってバッチを実行し、コンソール出力をデモする
 2. SSMS でテーブルの中身を SELECT して在庫・履歴への反映を確認する
 3. ログファイルをテキストエディタで開いて見せる
-4. 担当者から「なぜ 1 件失敗しても全体を止めないのか」「1 行ごとにトランザクションを分けた理由」「ログを残す目的」を口頭で説明できること
+4. コマンドラインから JAR を実行してデモする（classpath を自分で指定するパターン B でも実行できること）
+5. 担当者から以下を口頭で説明できること
+   - 「なぜ 1 件失敗しても全体を止めないのか」
+   - 「1 行ごとにトランザクションを分けた理由」
+   - 「ログを残す目的」
+   - 「classpath とは何か・なぜ指定が必要か」
+
+---
+
+## 提出・確認方法
+
+1. サンプル CSV を使ってバッチを実行し、コンソール出力をデモする
+2. SSMS でテーブルの中身を SELECT して在庫・履歴への反映を確認する
+3. ログファイルをテキストエディタで開いて見せる
+4. コマンドラインから JAR を実行してデモする（classpath を自分で指定するパターン B でも実行できること）
+5. 担当者から以下を口頭で説明できること
+   - 「なぜ 1 件失敗しても全体を止めないのか」
+   - 「1 行ごとにトランザクションを分けた理由」
+   - 「ログを残す目的」
+   - 「classpath とは何か・なぜ指定が必要か」
