@@ -250,42 +250,48 @@ REVERT;
 DB 接続を一元管理するクラス。
 
 ```java
-// 接続文字列の例（SQL Server 認証）
-String url  = "jdbc:sqlserver://localhost;instanceName=MSSQLLocalDB;"
-            + "databaseName=InventoryTraining;encrypt=false";
-String user = "inventory_user";
-String pass = "P@ssw0rd123";
-Connection conn = DriverManager.getConnection(url, user, pass);
+public class DbConnection {
+
+    private static final String URL = "jdbc:sqlserver://(localdb)\\\\MSSQLLocalDB;"
+                                    + "databaseName=InventoryTraining;"
+                                    + "integratedSecurity=true;encrypt=false";
+
+    public static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(URL);
+    }
+}
 ```
 
-> **注意：** ユーザー名・パスワードはコードに直書きしないこと。
-> プロパティファイル（`db.properties` など）に切り出して読み込む形にすること。
+**接続のクローズについて：**
 
-```
-# db.properties（プロジェクト直下に作成）
-db.url=jdbc:sqlserver://localhost;instanceName=MSSQLLocalDB;databaseName=InventoryTraining;encrypt=false
-db.user=inventory_user
-db.password=P@ssw0rd123
-```
+`Connection` は使い終わったら必ずクローズすること。クローズしないと接続が残り続け、
+リソースリークの原因になる。**try-with-resources** を使うと自動でクローズされるため推奨。
 
 ```java
-// プロパティファイルからの読み込み例
-Properties props = new Properties();
-props.load(new FileInputStream("db.properties"));
-String url  = props.getProperty("db.url");
-String user = props.getProperty("db.user");
-String pass = props.getProperty("db.password");
-Connection conn = DriverManager.getConnection(url, user, pass);
+// NG：クローズし忘れのリスクがある
+Connection conn = DbConnection.getConnection();
+PreparedStatement ps = conn.prepareStatement("SELECT ...");
+ResultSet rs = ps.executeQuery();
+// 例外が発生するとここより後に到達しない → conn が閉じられない
+
+// OK：try-with-resources を使う（例外が発生しても自動でクローズされる）
+try (Connection conn = DbConnection.getConnection();
+     PreparedStatement ps = conn.prepareStatement("SELECT * FROM parts");
+     ResultSet rs = ps.executeQuery()) {
+
+    while (rs.next()) {
+        // 結果の処理
+    }
+} // ここを抜けると conn / ps / rs が自動でクローズされる
 ```
+
+> **ポイント：** `Connection` / `PreparedStatement` / `ResultSet` はすべて `AutoCloseable` を実装しているため、try-with-resources で宣言すると自動的に `close()` が呼ばれる。
+> 宣言した順番とは**逆順**（rs → ps → conn）でクローズされる。
 
 実装すること：
 - `static Connection getConnection()` — 接続を返す
-- 接続情報は `db.properties` から読み込む（コードに直書きしない）
-- `db.properties` は `.gitignore` に追加してリポジトリに含めないこと
-
-> **【参考】Windows 認証との違い：**
-> `integratedSecurity=true` を指定すると OS のログインユーザーで接続する Windows 認証になる。
-> 今回は実務に合わせて SQL Server 認証（ユーザー名・パスワード）を使う。
+- 呼び出し側（DAO クラス）で必ず try-with-resources を使ってクローズすること
+- 接続文字列は定数で管理する（コードに直書きしない）
 
 ---
 
