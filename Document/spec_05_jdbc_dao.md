@@ -157,6 +157,70 @@ INSERT INTO parts (part_code, part_name, stock, warehouse_code) VALUES
 
 ---
 
+## 実行ユーザーの作成
+
+### なぜユーザーを作るか
+
+実務ではアプリケーションごとに専用の DB ユーザーを用意し、
+必要最低限の権限だけを付与するのが基本。
+今回も実務に合わせ、アプリ専用ユーザーを作成して接続する。
+
+### 手順 1：ログイン（サーバーレベル）の作成
+
+SSMS で Windows 認証（`(localdb)\MSSQLLocalDB`）に接続した状態で以下を実行する。
+
+```sql
+USE master;
+GO
+
+-- SQL Server ログインを作成する（Windows 認証ユーザーとして登録）
+CREATE LOGIN inventory_user
+    WITH PASSWORD = 'P@ssw0rd123',
+    DEFAULT_DATABASE = InventoryTraining,
+    CHECK_EXPIRATION = OFF,
+    CHECK_POLICY = OFF;
+GO
+```
+
+### 手順 2：データベースユーザーの作成と権限付与
+
+```sql
+USE InventoryTraining;
+GO
+
+-- ログインをデータベースユーザーとして登録
+CREATE USER inventory_user FOR LOGIN inventory_user;
+GO
+
+-- 必要最低限の権限を付与（SELECT / INSERT / UPDATE / DELETE のみ）
+GRANT SELECT, INSERT, UPDATE, DELETE ON parts              TO inventory_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON stock_transactions TO inventory_user;
+GO
+```
+
+> **ポイント：** `db_owner`（管理者権限）は付与しない。
+> アプリが使う操作だけに絞るのがセキュリティの基本。
+
+### 手順 3：権限の確認
+
+作成したユーザーで以下を実行し、権限の範囲内で動くことを確認する。
+
+```sql
+-- inventory_user として実行（EXECUTE AS で権限を切り替えて確認）
+EXECUTE AS USER = 'inventory_user';
+
+-- OK：SELECT できる
+SELECT * FROM parts;
+
+-- NG になるはず：テーブル削除は権限外
+DROP TABLE parts;   -- エラーになることを確認する
+
+-- 元のユーザーに戻す
+REVERT;
+```
+
+---
+
 ## 変更するプロジェクト構成
 
 ```
@@ -186,17 +250,42 @@ INSERT INTO parts (part_code, part_name, stock, warehouse_code) VALUES
 DB 接続を一元管理するクラス。
 
 ```java
-// 接続文字列の例（LocalDB・Windows 認証のためユーザー名/パスワード不要）
-String url = "jdbc:sqlserver://localhost;instanceName=MSSQLLocalDB;databaseName=InventoryTraining;"
-            + "integratedSecurity=true;encrypt=false";
-Connection conn = DriverManager.getConnection(url);
+// 接続文字列の例（SQL Server 認証）
+String url  = "jdbc:sqlserver://localhost;instanceName=MSSQLLocalDB;"
+            + "databaseName=InventoryTraining;encrypt=false";
+String user = "inventory_user";
+String pass = "P@ssw0rd123";
+Connection conn = DriverManager.getConnection(url, user, pass);
 ```
 
-> **注意：** Windows 認証（`integratedSecurity=true`）を使う場合、`mssql-jdbc_auth-<version>-x64.dll` が必要になることがある。接続できない場合はエラーメッセージを担当者に共有すること。
+> **注意：** ユーザー名・パスワードはコードに直書きしないこと。
+> プロパティファイル（`db.properties` など）に切り出して読み込む形にすること。
+
+```
+# db.properties（プロジェクト直下に作成）
+db.url=jdbc:sqlserver://localhost;instanceName=MSSQLLocalDB;databaseName=InventoryTraining;encrypt=false
+db.user=inventory_user
+db.password=P@ssw0rd123
+```
+
+```java
+// プロパティファイルからの読み込み例
+Properties props = new Properties();
+props.load(new FileInputStream("db.properties"));
+String url  = props.getProperty("db.url");
+String user = props.getProperty("db.user");
+String pass = props.getProperty("db.password");
+Connection conn = DriverManager.getConnection(url, user, pass);
+```
 
 実装すること：
 - `static Connection getConnection()` — 接続を返す
-- 接続文字列は定数またはプロパティファイルで管理する（コードに直書きしない）
+- 接続情報は `db.properties` から読み込む（コードに直書きしない）
+- `db.properties` は `.gitignore` に追加してリポジトリに含めないこと
+
+> **【参考】Windows 認証との違い：**
+> `integratedSecurity=true` を指定すると OS のログインユーザーで接続する Windows 認証になる。
+> 今回は実務に合わせて SQL Server 認証（ユーザー名・パスワード）を使う。
 
 ---
 
