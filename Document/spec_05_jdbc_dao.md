@@ -26,18 +26,86 @@ CSV で管理していたロジックは DAO（Data Access Object）クラスに
 
 ---
 
-## 事前準備
+## 事前準備：JDBC ドライバの追加
 
-- 課題 ① で LocalDB（`MSSQLLocalDB`）がセットアップ済みであることを確認する
-- mssql-jdbc の Maven dependency を `pom.xml` に追加する
+### なぜこの手順をやるか
 
-```xml
-<dependency>
-    <groupId>com.microsoft.sqlserver</groupId>
-    <artifactId>mssql-jdbc</artifactId>
-    <version>12.6.1.jre11</version>
-</dependency>
+Java からデータベースに接続するには **JDBC ドライバ**（外部ライブラリ）が必要。
+今回はあえて JAR ファイルを手動でプロジェクトに追加する手順を踏む。
+
+「外部ライブラリとは何か」「なぜビルドパスへの追加が必要か」を体感で理解することが目的。
+（実務では Maven / Gradle で依存関係を管理するが、その仕組みを理解するための前提知識になる）
+
+### 手順 1：JAR ファイルのダウンロード
+
+1. [https://learn.microsoft.com/ja-jp/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server](https://learn.microsoft.com/ja-jp/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server) にアクセスする
+2. 最新バージョンの ZIP ファイルをダウンロードする
+3. ZIP を解凍し、以下のファイルを探す
+
 ```
+解凍フォルダ/
+└── enu/
+    ├── mssql-jdbc-12.x.x.jre11.jar   ← Java 11 以上はこちらを使う
+    └── mssql-jdbc-12.x.x.jre8.jar    ← Java 8 の場合はこちら
+```
+
+> JDK 17（Temurin）を使っているため `jre11` の JAR を選ぶこと。
+
+### 手順 2：lib フォルダへの配置
+
+1. Eclipse のプロジェクト直下に `lib` フォルダを作成する
+   - プロジェクトを右クリック → 「新規」→「フォルダー」→ フォルダー名 `lib`
+2. ダウンロードした `mssql-jdbc-12.x.x.jre11.jar` を `lib` フォルダにコピーする
+
+```
+05_project_inventory_system/
+├── src/
+├── lib/
+│   └── mssql-jdbc-12.x.x.jre11.jar   ← ここに配置
+└── ...
+```
+
+### 手順 3：ビルドパスへの追加
+
+JAR をフォルダに置いただけでは Java から使えない。Eclipse のビルドパスに登録する必要がある。
+
+1. プロジェクトを右クリック →「ビルド・パス」→「ビルド・パスの構成」をクリック
+2. 「ライブラリー」タブを開く
+3. 「JAR の追加」をクリック
+4. `lib/mssql-jdbc-12.x.x.jre11.jar` を選択して「OK」
+5. 「適用して閉じる」をクリック
+
+**確認ポイント：**
+プロジェクト直下に「参照ライブラリー」が表示され、その中に `mssql-jdbc-12.x.x.jre11.jar` が見えれば OK。
+
+### 手順 4：動作確認
+
+以下のコードを一時的に `main` メソッドに書いて実行し、エラーが出ないことを確認する。
+
+```java
+// ドライバが読み込めるかの確認（接続はまだしない）
+Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+System.out.println("ドライバの読み込み成功");
+```
+
+> `ClassNotFoundException` が出た場合は、ビルドパスへの追加が正しくできていない。
+> 手順 3 をやり直すこと。
+
+---
+
+> **【参考】Maven を使う場合**
+>
+> 実務プロジェクトでは JAR を手動管理するのではなく、Maven の `pom.xml` に依存関係を記述して自動的にダウンロード・管理する方法が一般的。
+>
+> ```xml
+> <dependency>
+>     <groupId>com.microsoft.sqlserver</groupId>
+>     <artifactId>mssql-jdbc</artifactId>
+>     <version>12.6.1.jre11</version>
+> </dependency>
+> ```
+>
+> 今回手動で行った「JAR のダウンロード → 配置 → ビルドパス登録」を、Maven が自動でやってくれるイメージ。課題⑥以降で Maven プロジェクトに移行した際に、その便利さを改めて実感できる。
 
 ---
 
